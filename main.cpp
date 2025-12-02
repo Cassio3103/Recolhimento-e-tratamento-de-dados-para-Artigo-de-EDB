@@ -1,5 +1,6 @@
 #include "HashTable.h++"
 #include "utilities.h++"
+#include "StringHash.h++"
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -9,13 +10,12 @@
 
 using namespace std;
 
-// DECLARAÇÕES: Mantenha sempre o tipo long long para as chaves
+// DECLARAÇÕES
 void run_experiment(const vector<long long>& keys, int M, double alpha, ostream& os);
 void print_header(ostream& os);
 
 
 int main(int argc, char* argv[]) {
-    // Verifica argumentos
     if (argc != 3) {
         cerr << "Uso: " << argv[0] << " <caminho_para_csv> <indice_da_coluna_chave>" << endl;
         return 1;
@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
     string filename = argv[1];
     int key_column_index = stoi(argv[2]);
 
-    // 1. LEITURA DE CHAVES (Retorna vector<long long>)
     vector<long long> keys = read_keys_from_csv(filename, key_column_index);
 
     if (keys.empty()) {
@@ -32,24 +31,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int num_keys = keys.size();
+    int num_keys = (int)keys.size();
     
-    // 2. DEFINICAO DOS FATORES DE CARGA (Para testar o limite, até 0.99)
+    // DEFINICAO DOS FATORES DE CARGA (Para testar o limite)
     vector<double> load_factors = {0.50, 0.70, 0.80, 0.90, 0.95, 0.99}; 
 
-    // Imprime o cabeçalho do CSV de saída
     print_header(cout);
 
-    // 3. EXECUÇÃO DO EXPERIMENTO
     for (double alpha : load_factors) {
         
-        // CALCULA o tamanho M ideal para o fator de carga (N/alpha)
-        int required_size = (int)std::ceil(num_keys / alpha);
+        int required_size = (int)std::ceil((double)num_keys / alpha);
         
-        // OBRIGATÓRIO: Força M a ser o próximo número primo (Correção de estabilidade)
+        // CORREÇÃO CRÍTICA: Força M a ser o próximo número primo
         int M = get_prime_size(required_size); 
 
-        // Roda o experimento para o M primo encontrado
         run_experiment(keys, M, alpha, cout);
     }
 
@@ -58,15 +53,12 @@ int main(int argc, char* argv[]) {
 
 void run_experiment(const vector<long long>& keys, int M, double alpha, ostream& os) {
     
-    int num_keys = keys.size();
+    int num_keys = (int)keys.size();
 
-    // 1. Inicializa as Hash Tables com o M PRIMO
-    // Nota: M é passado para o construtor de cada tabela.
+    // Inicializa as Hash Tables com o M PRIMO
     HashTable_Linear ht_sl(M);
     HashTable_Quadratic ht_sq(M);
     HashTable_SQO ht_sqo(M);
-
-    // 2. Insere as chaves e coleta métricas
 
     // SL
     long long total_probes_sl = 0;
@@ -89,7 +81,7 @@ void run_experiment(const vector<long long>& keys, int M, double alpha, ostream&
     auto end_sqo = chrono::high_resolution_clock::now();
     long long time_sqo = chrono::duration_cast<chrono::microseconds>(end_sqo - start_sqo).count();
 
-    // 3. Imprime os Resultados
+    // Imprime os Resultados
     double nms_sl = (double)total_probes_sl / num_keys;
     double nms_sq = (double)total_probes_sq / num_keys;
     double nms_sqo = (double)total_probes_sqo / num_keys;

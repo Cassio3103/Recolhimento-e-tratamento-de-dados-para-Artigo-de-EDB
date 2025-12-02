@@ -1,106 +1,104 @@
 #include "HashTable.h++"
-#include <iostream>
+#include <cmath>
+#include <cstdlib>
 
-// --- IMPLEMENTAÇÃO DA CLASSE BASE HashTable ---
+// --- IMPLEMENTAÇÃO BASE HashTable ---
 
-HashTable::HashTable(int size) : M(size), table(size, EMPTY), probes_counter(0) {}
+HashTable::HashTable(int size) : M(size), table(size, EMPTY_SLOT), probes_counter(0) { }
 
 void HashTable::reset_probes_counter() {
     probes_counter = 0;
 }
 
 int HashTable::hash_inicial(long long key) {
-    return std::abs(key) % M;
+    // Usa valor absoluto e retorna um índice no intervalo [0, M-1]
+    long long h = std::llabs(key);
+    return (int)(h % M);
 }
 
-// Implementação Comum de Insert (usa next_probe_index())
-bool HashTable::insert(long long key) {
-    if (key == EMPTY || key == DELETED) return false; 
+long long HashTable::insert(long long key) {
+    if (key == EMPTY_SLOT || key == DELETED_SLOT) return 0; // inválido
 
-    for (int i = 0; i < M; ++i) {
-        int index = next_probe_index(key, i); // Chama o probing específico
-        probes_counter++;
+    // Tentar até M sondagens (se não achar, tabela considerada cheia)
+    for (long long i = 0; i < (long long)M; ++i) {
+        int index = next_probe_index(key, i);
 
-        if (table[index] == EMPTY || table[index] == DELETED) {
+        if (table[index] == EMPTY_SLOT || table[index] == DELETED_SLOT) {
             table[index] = key;
-            return true;
+            return i + 1; // numero de sondagens (1-based)
         }
 
         if (table[index] == key) {
-            return true; // Chave já existe
+            // chave já presente; contar sondagens efetuadas até aqui
+            return i + 1;
         }
     }
-    return false; // Falha (Tabela cheia ou loop)
+    // Falha - tabela cheia ou não cobriu todos os indices úteis
+    return (long long)M;
 }
 
-// Implementação Comum de Search (usa next_probe_index())
-bool HashTable::search(int key) {
-    if (key == EMPTY || key == DELETED) return false;
+bool HashTable::search(long long key) {
+    if (key == EMPTY_SLOT || key == DELETED_SLOT) return false;
 
-    for (int i = 0; i < M; ++i) {
-        int index = next_probe_index(key, i); // Chama o probing específico
+    for (long long i = 0; i < (long long)M; ++i) {
+        int index = next_probe_index(key, i);
         probes_counter++;
 
-        if (table[index] == EMPTY) {
-            return false; // Parar: chave nunca esteve aqui
+        if (table[index] == EMPTY_SLOT) {
+            // Campo vazio encontrado -> chave não está na tabela
+            return false;
         }
         if (table[index] == key) {
-            return true; // Sucesso
+            return true;
         }
     }
     return false;
 }
 
-// --- IMPLEMENTAÇÃO DA CLASSE DERIVADA HashTable_Quadratic ---
-
-HashTable_Quadratic::HashTable_Quadratic(int size) : HashTable(size) {}
-HashTable_SQO::HashTable_SQO(int size) : HashTable(size) {}
-
-int HashTable_Quadratic::next_probe_index(long long key, int i) {
-    int initial_index = hash_inicial(key);
-    // Sondagem Quadrática: h(k, i) = (h'(k) + i^2) mod M
-    return (initial_index + i * i) % M; 
-}
-
-// --- IMPLEMENTAÇÃO DA CLASSE DERIVADA HashTable_Linear ---
-
+// --- IMPLEMENTAÇÃO HashTable_Linear ---
 HashTable_Linear::HashTable_Linear(int size) : HashTable(size) {}
 
-int HashTable_Linear::next_probe_index(long long key, int i) {
-    int initial_index = hash_inicial(key);
-    // Sondagem Linear: h(k, i) = (h'(k) + i) mod M
-    return (initial_index + i) % M; 
+int HashTable_Linear::next_probe_index(long long key, long long i) {
+    int h0 = hash_inicial(key);
+    long long idx = (long long)h0 + i;
+    idx %= M;
+    if (idx < 0) idx += M;
+    return (int)idx;
 }
 
-/*Aqui, estou adicionando a implementação da classe derivada
-HasTable_SQO (Otimizada)*/
+// --- IMPLEMENTAÇÃO HashTable_Quadratic ---
+HashTable_Quadratic::HashTable_Quadratic(int size) : HashTable(size) {}
 
-int HashTable_SQO::next_probe_index(long long key, int i) {
-    // 1. Primeiro Hash (h1(k))
-    // O h1(k) é seu hash inicial simples (geralmente key % M)
-    int h1_index = hash_inicial(key); 
-    
-    // 2. O SEGUNDO HASH (h2(k)): Fator de Diversidade (Otimização)
-    const int P = 503; // Primo para garantir boa distribuição do h2(k)
-    
-    // Calcula h2(k) = 1 + (key % P), garantindo que h2(k) nunca seja 0.
-    long long h2_factor = 1 + (key % P); 
+int HashTable_Quadratic::next_probe_index(long long key, long long i) {
+    int h0 = hash_inicial(key);
+    long long quad = i * i;
+    long long idx = (long long)h0 + quad;
+    idx %= M;
+    if (idx < 0) idx += M;
+    return (int)idx;
+}
 
-    // 3. CÁLCULO DO PASSO DE SONDA: Combinando h2(k)*i (Double Hashing) e i^2 (Quadrático)
-    
-    // Usamos long long para todas as operações intermediárias
-    long long i_long = (long long)i;
-    
-    // Termo Linear (Diversidade): h2(k) * i
-    long long linear_term = h2_factor * i_long; 
-    
-    // Termo Quadrático: i^2
-    long long quadratic_term = i_long * i_long; 
+// --- IMPLEMENTAÇÃO HashTable_SQO (Sondagem Quadrática Otimizada) ---
+HashTable_SQO::HashTable_SQO(int size) : HashTable(size) {}
 
-    // O passo total: (h2(k) * i + i^2)
+int HashTable_SQO::next_probe_index(long long key, long long i) {
+    int h0 = hash_inicial(key);
+
+    // --- calcula j dependente da chave (corrige o problema de usar j fixo) ---
+    // queremos um pequeno offset j >= 1; limitamos j para um valor pequeno (ex: <=7)
+    // e também garantimos que j < M para evitar comportamento degenerado quando M pequeno.
+    int maxCandidate = 7;
+    if (M - 1 < maxCandidate) maxCandidate = std::max(1, M - 1); // garante >=1
+
+    int j_offset = 1 + (int)(std::llabs(key) % maxCandidate); // 1..maxCandidate
+
+    // --- cálculo do passo de sondagem ---
+    long long linear_term = (long long)j_offset * i;
+    long long quadratic_term = i * i;
     long long probe_step = linear_term + quadratic_term;
-    
-    // 4. RETORNO FINAL: (h1(k) + probe_step) mod M
-    // A soma deve ser em long long antes do módulo M.
-    return (int)((h1_index + probe_step) % M); 
+
+    long long idx = (long long)h0 + probe_step;
+    idx %= M;
+    if (idx < 0) idx += M;
+    return (int)idx;
 }

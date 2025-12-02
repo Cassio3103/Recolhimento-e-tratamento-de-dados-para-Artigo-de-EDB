@@ -1,16 +1,13 @@
 #include "StringHash.h++"
+#include <cmath>
 
-// Calcula um valor hash longo a partir de uma string
 long long string_to_long_hash(const std::string& str) {
     long long hash_val = 0;
-    const int P = 31; // Número primo comum
-    const int M = 1e9 + 9; // Primo grande (para modularização, se necessário)
+    const long long P = 31LL; // base polinomial
+    const long long MOD = 1000000009LL; // primo grande
 
-    for (char c : str) {
-        // Combina o hash anterior com o valor ASCII do caractere (mais P)
-        hash_val = (hash_val * P + (c - 'a' + 1)) % M; 
-        // Se a string for longa, use abs(hash_val) para o h'(k)
+    for (unsigned char c : str) {
+        hash_val = (hash_val * P + (long long)c) % MOD;
     }
-    // Retorna o valor absoluto para garantir que seja positivo
-    return std::abs(hash_val); 
+    return std::llabs(hash_val);
 }

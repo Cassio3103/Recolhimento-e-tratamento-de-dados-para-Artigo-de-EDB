@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <string>
-#include <random>
 using std::vector;
 using std::string;
 
@@ -12,8 +11,6 @@ vector<long long> read_keys_from_csv(const string& filename, int key_column_inde
 
 // Declaração da função para gerar dados aleatórios (se necessário)
 vector<int> generate_keys(int count, int max_value);
-
-// Em utilities.h++
 
 // Checa se é primo
 bool is_prime(int n);

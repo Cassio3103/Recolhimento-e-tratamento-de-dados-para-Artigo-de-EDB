@@ -2,54 +2,57 @@
 #define HASHTABLE_H
 
 #include <vector>
-#include <cmath>
-using std::vector;
+#include <climits>
 
-/*O estados dos Slots da tabela*/
-
-const int EMPTY = -1; 
-const int DELETED = -2;
+constexpr long long EMPTY_SLOT = LLONG_MIN;
+constexpr long long DELETED_SLOT = LLONG_MIN + 1;
 
 class HashTable {
+public:
+    HashTable(int size);
+    virtual ~HashTable() = default;
+
+    // Insert returns number of probes performed (1-based)
+    virtual long long insert(long long key);
+
+    // Search returns true if found
+    virtual bool search(long long key);
+
+    // Reset counter of probes used in searches (separate diagnostic)
+    void reset_probes_counter();
+
+    // Getter table size
+    int size() const { return M; }
+
 protected:
-    int M; // Tamanho da tabela
-    vector<int> table;
+    // Compute base hash index h'(k)
     int hash_inicial(long long key);
 
-public:
-    long long probes_counter; // Variável para rastrear o número total de sondas
-    
-    // Construtor
-    HashTable(int size);
-    
-    // Métodos virtuais puros (interface comum)
-    virtual int next_probe_index(long long key, int i) = 0; // O coracao do probing
-    virtual bool insert(long long key);
-    virtual bool search(int key);
-    
-    // Metodos auxiliares
-    void reset_probes_counter();
+    // Each derived class implements its probing function
+    virtual int next_probe_index(long long key, long long i) = 0;
+
+    int M;
+    std::vector<long long> table;
+    long long probes_counter;
 };
 
-// --- CLASSES DERIVADAS (IMPLEMENTAÇÕES DE PROBING) ---
+// Derived classes
+class HashTable_Linear : public HashTable {
+public:
+    HashTable_Linear(int size);
+    virtual int next_probe_index(long long key, long long i) override;
+};
 
 class HashTable_Quadratic : public HashTable {
 public:
     HashTable_Quadratic(int size);
-    int next_probe_index(long long key, int i) override; // Implementa h(k, i) = (h'(k) + i^2) mod M
+    virtual int next_probe_index(long long key, long long i) override;
 };
 
-class HashTable_Linear : public HashTable {
+class HashTable_SQO : public HashTable {
 public:
-    HashTable_Linear(int size);
-    int next_probe_index(long long key, int i) override; // Implementa h(k, i) = (h'(k) + i) mod M
+    HashTable_SQO(int size);
+    virtual int next_probe_index(long long key, long long i) override;
 };
 
-class HashTable_SQO : public HashTable{
-    public:
-        HashTable_SQO(int size);
-        int next_probe_index(long long key, int i) override;
-};
-
-
-#endif
+#endif // HASHTABLE_H
